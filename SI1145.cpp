@@ -202,7 +202,7 @@ void SI1145::autoRange(uint16_t _vis, uint16_t _ir) {
         }
     }
     // for the IR light
-    if (_ir > 25000) { //overflow in IR light or getting close to saturation (saturation happens at 0x7FF acoording to AN498
+    if (_ir > 25000) { //overflow in IR light or getting close to saturation (saturation happens at 0x7FFF acoording to AN498
         if (gainIR == 0) { // At the lowest gain and saturation
             if (rangeIR == 0) { // Not in high range mode
                 rangeIR = 1;
@@ -267,13 +267,13 @@ float SI1145::forceMeasLux(void){
             write8(SI1145_REG_COMMAND, SI1145_NOP);
             break;
         case 0x8C: //Vis overflow
-            vis = 0x7F;
+            vis = 0x7FFF;
             ir  = readIR();
             tp  = readTemp();
             write8(SI1145_REG_COMMAND, SI1145_NOP);
             break;
         case 0x8D: //IR overflow
-            ir = 0x7F;
+            ir = 0x7FFF;
             vis = readVisible();
             tp  = readTemp();
             write8(SI1145_REG_COMMAND, SI1145_NOP);
