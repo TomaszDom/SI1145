@@ -173,11 +173,10 @@ void SI1145::setIRRange(uint8_t range) {
     writeParam(SI1145_PARAM_ALSIRADCMISC, range);
 }
 
-//broken for now
 // returns the UV index * 100 (divide by 100 to get the index)
-//uint16_t SI1145::readUV(void) {
-//    return read16(0x2C);
-//}
+uint16_t SI1145::readUV(void) {
+   return read16(0x2C);
+}
 
 // increase or decrease the gain based on the readings
 void SI1145::autoRange(uint16_t _vis, uint16_t _ir) {
@@ -203,7 +202,7 @@ void SI1145::autoRange(uint16_t _vis, uint16_t _ir) {
         }
     }
     // for the IR light
-    if (_ir > 25000) { //overflow in IR light or getting close to saturation (saturation happens at 0x7FFF acoording to AN498
+    if (_ir > 25000) { //overflow in IR light or getting close to saturation (saturation happens at 0x7FF acoording to AN498
         if (gainIR == 0) { // At the lowest gain and saturation
             if (rangeIR == 0) { // Not in high range mode
                 rangeIR = 1;
@@ -268,13 +267,13 @@ float SI1145::forceMeasLux(void){
             write8(SI1145_REG_COMMAND, SI1145_NOP);
             break;
         case 0x8C: //Vis overflow
-            vis = 0x7FF;
+            vis = 0x7F;
             ir  = readIR();
             tp  = readTemp();
             write8(SI1145_REG_COMMAND, SI1145_NOP);
             break;
         case 0x8D: //IR overflow
-            ir = 0x7FF;
+            ir = 0x7F;
             vis = readVisible();
             tp  = readTemp();
             write8(SI1145_REG_COMMAND, SI1145_NOP);
@@ -305,28 +304,28 @@ float SI1145::forceMeasLux(void){
     else {
         switch (gainVis) {
             case Gain_0:
-                _vis = vis-0.3f*(tp-tp_init)/35.0f;
+                _vis = vis-0.3*(tp-tp_init)/35.0;
                 break;
             case Gain_1:
-                _vis = vis-0.11f*(tp-tp_init)/35.0f;
+                _vis = vis-0.11*(tp-tp_init)/35.0;
                 break;
             case Gain_2:
-                _vis = vis-0.06f*(tp-tp_init)/35.0f;
+                _vis = vis-0.06*(tp-tp_init)/35.0;
                 break;
             case Gain_3:
-                _vis = vis-0.03f*(tp-tp_init)/35.0f;
+                _vis = vis-0.03*(tp-tp_init)/35.0;
                 break;
             case Gain_4:
-                _vis = vis-0.01f*(tp-tp_init)/35.0f;
+                _vis = vis-0.01*(tp-tp_init)/35.0;
                 break;
             case Gain_5:
-                _vis = vis-0.008f*(tp-tp_init)/35.0f;
+                _vis = vis-0.008*(tp-tp_init)/35.0;
                 break;
             case Gain_6:
-                _vis = vis-0.007f*(tp-tp_init)/35.0f;
+                _vis = vis-0.007*(tp-tp_init)/35.0;
                 break;
             case Gain_7:
-                _vis = vis-0.008f*(tp-tp_init)/35.0f;
+                _vis = vis-0.008*(tp-tp_init)/35.0;
                 break;
         }
     }
@@ -335,16 +334,16 @@ float SI1145::forceMeasLux(void){
     else {
         switch (gainIR) {
             case Gain_0:
-                _ir = ir-0.3f*(tp-tp_init)/35.0f;
+                _ir = ir-0.3*(tp-tp_init)/35.0;
                 break;
             case Gain_1:
-                _ir = ir-0.06f*(tp-tp_init)/35.0f;
+                _ir = ir-0.06*(tp-tp_init)/35.0;
                 break;
             case Gain_2:
-                _ir = ir-0.03f*(tp-tp_init)/35.0f;
+                _ir = ir-0.03*(tp-tp_init)/35.0;
                 break;
             case Gain_3:
-                _ir = ir-0.01f*(tp-tp_init)/35.0f;
+                _ir = ir-0.01*(tp-tp_init)/35.0;
                 break;
             default:
                 _ir = ir;
@@ -353,9 +352,9 @@ float SI1145::forceMeasLux(void){
     }
     
     // compute the lux value - for an uncovered SI1145 die
-    float _rangeVis = (rangeVis == 0) 1f : 14.5f; //14.5 if high range, 1 otherwise
-    float _rangeIR  = (rangeIR == 0) 1f : 14.5f; //14.5 if high range, 1 otherwise
-    float lux = (5.41f * _vis * _rangeVis) / (1 << gainVis) + (-0.08f * _ir * _rangeIR) / (1 << gainIR);
+    float _rangeVis = ((rangeVis == 0) ? 1.0: 14.5); //14.5 if high range, 1 otherwise
+    float _rangeIR  = ((rangeIR == 0) ? 1.0: 14.5); //14.5 if high range, 1 otherwise
+    float lux = (5.41 * _vis * _rangeVis) / (1 << gainVis) + (-0.08 * _ir * _rangeIR) / (1 << gainIR);
     if (lux < 0) //safeguard
         lux = 0.0;
     
@@ -565,6 +564,24 @@ uint16_t SI1145::readTemp(void) {
 // returns "Proximity" - assumes an IR LED is attached to LED
 uint16_t SI1145::readProx(void) {
     return read16(SI1145_REG_PS1DATA0);
+}
+
+uint16_t SI1145::forceMeasUV(void){
+    // Enable UV
+    writeParam(SI1145_PARAM_CHLIST, SI1145_PARAM_CHLIST_ENUV |
+               SI1145_PARAM_CHLIST_ENALSIR | SI1145_PARAM_CHLIST_ENALSVIS);
+    uint16_t uv;
+    //sending an ALS force command
+    write8(SI1145_REG_COMMAND, SI1145_ALS_FORCE);
+    //then we should wait until the measurments completes
+    //the worse case is 3*25.55x2^7 = 3*3.28ms = 9.84ms
+    delay(20);
+	uv = readUV();
+	return uv;
+    write8(SI1145_REG_COMMAND, SI1145_NOP);
+	// Re-enable Temperature
+	writeParam(SI1145_PARAM_CHLIST,  SI1145_PARAM_CHLIST_ENAUX |
+               SI1145_PARAM_CHLIST_ENALSIR | SI1145_PARAM_CHLIST_ENALSVIS);
 }
 
 /*********************************************************************/

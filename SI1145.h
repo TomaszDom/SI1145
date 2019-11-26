@@ -223,6 +223,7 @@ public:
     void autoRange(uint16_t _vis, uint16_t _ir);
     
     float forceMeasLux();
+	uint16_t forceMeasUV();
     
     uint16_t readTemp();
     
